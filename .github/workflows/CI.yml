@@ -4,93 +4,48 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 env:
-  AWS_REGION: us-east-1                   # your preferred AWS region
-  ECR_REPOSITORY: e-commerce-app          # Amazon ECR repository name
-  CONTAINER_NAME: e-commerce-container    # container name in task definition
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: e-commerce-app
+  CONTAINER_NAME: e-commerce-container
+  SONAR_PROJECT_KEY: sonar-test-e-commerce_e-commerce-application
+  SONAR_ORGANIZATION: sonar-test-e-commerce
 
 jobs:
-  run-test-scan:
+  build-and-scan:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Check out the repository
+      # Step 1: Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Java 17
-      - name: Setup Java
+      # Step 2: Set up Java (Java 11)
+      - name: Set up Java
         uses: actions/setup-java@v3
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: 11
 
-      # Step 3: Install SonarScanner CLI
-      - name: Install SonarScanner CLI
+      # Step 3: Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 4: Build Docker image
+      - name: Build Docker image
         run: |
-          curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.1.3023-linux.zip
-          unzip sonar-scanner.zip
-          export PATH="$PATH:$PWD/sonar-scanner-4.8.1.3023-linux/bin"
-          echo "$PWD/sonar-scanner-4.8.1.3023-linux/bin" >> $GITHUB_PATH
+          docker build -t $ECR_REPOSITORY:$GITHUB_SHA .
 
-      # Step 4: Run SonarCloud Scan
+      # Step 5: SonarCloud scan
       - name: SonarCloud Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           sonar-scanner \
-            -Dsonar.projectKey=sonar-test-e-commerce \
-            -Dsonar.organization=sonar-test-e-commerce \
-            -Dsonar.sources=.
-
-      # Step 5: Set up Docker Buildx
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # Step 6: Configure AWS credentials
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      # Step 7: Login to Amazon ECR
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      # Step 8: Build Docker image
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
-
-      # Step 9: Scan Docker image with Trivy
-      - name: Scan Docker image
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-          format: 'json'
-          exit-code: '0'
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-      # Step 10: Push Docker image to ECR (optional)
-#      - name: Push Docker image
-#        run: |
-#          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
-#          docker tag ${{ env.ECR_REPOSITORY }}:${{ github.sha }} "$IMAGE_URI"
-#          docker push "$IMAGE_URI"
-
-      # Step 11: Deploy to EKS (placeholder)
-#      - name: Deploy to EKS
-#        run: echo "Deployment step placeholder"
-
-      # Step 12: Set up Prometheus and Grafana (placeholder)
-#      - name: Setup Monitoring
-#        run: echo "Prometheus & Grafana setup placeholder"
-
-      # Step 13: Slack notification (placeholder)
-#      - name: Slack Notification
-#        run: echo "Slack notification placeholder"
+            -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+            -Dsonar.organization=$SONAR_ORGANIZATION \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=$SONAR_TOKEN
