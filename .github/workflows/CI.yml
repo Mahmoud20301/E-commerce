@@ -38,22 +38,10 @@ jobs:
         run: |
           docker build -t $ECR_REPOSITORY:$GITHUB_SHA .
 
-      # Step 5: SonarCloud scan
+      # Step 5: SonarCloud scan (official action)
       - name: SonarCloud Scan
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          # Install sonar-scanner if not already available
-          if ! command -v sonar-scanner &> /dev/null; then
-            echo "Installing SonarScanner..."
-            wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.1.3023-linux.zip
-            unzip sonar-scanner-cli-4.8.1.3023-linux.zip -d $HOME
-            export PATH="$HOME/sonar-scanner-4.8.1.3023-linux/bin:$PATH"
-          fi
-
-          sonar-scanner \
-            -Dsonar.projectKey=$SONAR_PROJECT_KEY \
-            -Dsonar.organization=$SONAR_ORGANIZATION \
-            -Dsonar.sources=. \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.login=$SONAR_TOKEN
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectKey: ${{ env.SONAR_PROJECT_KEY }}
+          organization: ${{ env.SONAR_ORGANIZATION }}
+          token: ${{ secrets.SONAR_TOKEN }}
