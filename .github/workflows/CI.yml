@@ -6,9 +6,9 @@ on:
       - main
 
 env:
-  AWS_REGION: us-east-1                   # your preferred AWS region
-  ECR_REPOSITORY: e-commerce-app          # Amazon ECR repository name
-  CONTAINER_NAME: e-commerce-container    # container name in task definition
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: e-commerce-app
+  CONTAINER_NAME: e-commerce-container
 
 jobs:
   run-test-scan:
@@ -19,39 +19,47 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Docker Buildx for advanced caching
+      # Step 2: Set up Java 17 for SonarCloud
+      - name: Set up Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Step 3: Set up Docker Buildx for advanced caching
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Step 3: SonarCloud Scan
+      # Step 4: SonarCloud Scan
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-           -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-           -Dsonar.projectKey=sonar-test-e-commerce
-           -Dsonar.organization=sonar-test-e-commerce
-           -Dsonar.sources=.
+            -Dsonar.projectKey=sonar-test-e-commerce
+            -Dsonar.organization=sonar-test-e-commerce
+            -Dsonar.sources=.
 
-
-      # Step 4: Log in to Amazon ECR
+      # Step 5: Configure AWS credentials
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@0e613a0980cbf65ed5b322eb7a1e075d28913a83
+        uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # Step 6: Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@62f4f872db3836360b72999f4b87f1ff13310f3a
+        uses: aws-actions/amazon-ecr-login@v1
 
-      # Step 5: Build Docker image
+      # Step 7: Build Docker image
       - name: Build Docker image
         run: |
           docker build -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
 
-      # Step 6: Scan Docker image with Trivy
+      # Step 8: Scan Docker image with Trivy
       - name: Scan Docker image
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -61,27 +69,27 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-      # Step 7: Move Docker cache (optional)
+      # Step 9: Move Docker cache (optional)
 #      - name: Move Docker cache
 #        run: |
 #            rm -rf /tmp/.buildx-cache
 #            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-      # Step 8: Push Docker image to ECR (optional)
+      # Step 10: Push Docker image to ECR (optional)
 #      - name: Push Docker image
 #        run: |
 #            IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
 #            docker tag ${{ env.ECR_REPOSITORY }}:${{ github.sha }} "$IMAGE_URI"
 #            docker push "$IMAGE_URI"
 
-      # Step 9: Deploy to EKS (placeholder)
+      # Step 11: Deploy to EKS (placeholder)
 #      - name: Deploy to EKS
 #        run: echo "Deployment step placeholder"
 
-      # Step 10: Set up Prometheus and Grafana (placeholder)
+      # Step 12: Set up Prometheus and Grafana (placeholder)
 #      - name: Setup Monitoring
 #        run: echo "Prometheus & Grafana setup placeholder"
 
-      # Step 11: Slack notification (placeholder)
+      # Step 13: Slack notification (placeholder)
 #      - name: Slack Notification
 #        run: echo "Slack notification placeholder"
