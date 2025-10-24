@@ -11,7 +11,7 @@ env:
   ECR_REPOSITORY: e-commerce-app
   CONTAINER_NAME: e-commerce-container
   SONAR_PROJECT_KEY: new-sonarscan_new-sonarscan
-  SONAR_ORGANIZATION: sonar-test-e-commerce
+  SONAR_ORGANIZATION: new-sonarscan
 
 jobs:
   build-and-scan:
