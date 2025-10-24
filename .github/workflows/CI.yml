@@ -6,9 +6,9 @@ on:
       - main
 
 env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY: e-commerce-app
-  CONTAINER_NAME: e-commerce-container
+  AWS_REGION: us-east-1                   # your preferred AWS region
+  ECR_REPOSITORY: e-commerce-app          # Amazon ECR repository name
+  CONTAINER_NAME: e-commerce-container    # container name in task definition
 
 jobs:
   run-test-scan:
@@ -19,29 +19,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Java 17 for SonarCloud
-      - name: Set up Java 17
+      # Step 2: Set up Java 17
+      - name: Setup Java
         uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: '17'
 
-      # Step 3: Set up Docker Buildx for advanced caching
+      # Step 3: Install SonarScanner CLI
+      - name: Install SonarScanner CLI
+        run: |
+          curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.1.3023-linux.zip
+          unzip sonar-scanner.zip
+          export PATH="$PATH:$PWD/sonar-scanner-4.8.1.3023-linux/bin"
+          echo "$PWD/sonar-scanner-4.8.1.3023-linux/bin" >> $GITHUB_PATH
+
+      # Step 4: Run SonarCloud Scan
+      - name: SonarCloud Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          sonar-scanner \
+            -Dsonar.projectKey=sonar-test-e-commerce \
+            -Dsonar.organization=sonar-test-e-commerce \
+            -Dsonar.sources=.
+
+      # Step 5: Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Step 4: SonarCloud Scan
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v1
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=sonar-test-e-commerce
-            -Dsonar.organization=sonar-test-e-commerce
-            -Dsonar.sources=.
-
-      # Step 5: Configure AWS credentials
+      # Step 6: Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -49,17 +56,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Step 6: Login to Amazon ECR
+      # Step 7: Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Step 7: Build Docker image
+      # Step 8: Build Docker image
       - name: Build Docker image
         run: |
           docker build -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
 
-      # Step 8: Scan Docker image with Trivy
+      # Step 9: Scan Docker image with Trivy
       - name: Scan Docker image
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -69,18 +76,12 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-      # Step 9: Move Docker cache (optional)
-#      - name: Move Docker cache
-#        run: |
-#            rm -rf /tmp/.buildx-cache
-#            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
       # Step 10: Push Docker image to ECR (optional)
 #      - name: Push Docker image
 #        run: |
-#            IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
-#            docker tag ${{ env.ECR_REPOSITORY }}:${{ github.sha }} "$IMAGE_URI"
-#            docker push "$IMAGE_URI"
+#          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+#          docker tag ${{ env.ECR_REPOSITORY }}:${{ github.sha }} "$IMAGE_URI"
+#          docker push "$IMAGE_URI"
 
       # Step 11: Deploy to EKS (placeholder)
 #      - name: Deploy to EKS
