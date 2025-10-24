@@ -10,7 +10,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: e-commerce-app
   CONTAINER_NAME: e-commerce-container
-  SONAR_PROJECT_KEY: sonar-test-e-commerce_E-Commerce Application
+  SONAR_PROJECT_KEY: sonar-test-e-commerce_new-sonarscan
   SONAR_ORGANIZATION: sonar-test-e-commerce
 
 jobs:
