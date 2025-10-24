@@ -46,7 +46,8 @@ jobs:
           # Install sonar-scanner if not already available
           if ! command -v sonar-scanner &> /dev/null; then
             echo "Installing SonarScanner..."
-            wget -qO- https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.1.3023-linux.zip | bsdtar -xvf- -C $HOME
+            wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.1.3023-linux.zip
+            unzip sonar-scanner-cli-4.8.1.3023-linux.zip -d $HOME
             export PATH="$HOME/sonar-scanner-4.8.1.3023-linux/bin:$PATH"
           fi
 
