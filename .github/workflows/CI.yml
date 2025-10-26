@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-  
 
 env:
   AWS_REGION: us-east-1
@@ -47,7 +46,10 @@ jobs:
             -Dsonar.sources=.
             -Dsonar.java.binaries=.
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
-              # --- 🔹 Step 9: Notify Slack when pipeline succeeds ---
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.branch.name=master
+
+      # --- 🔹 Notify Slack when pipeline succeeds ---
       - name: Send Slack Success Notification
         if: success()
         run: |
@@ -55,13 +57,10 @@ jobs:
           --data "{\"text\":\"✅ *CI Pipeline Succeeded!*\nRepository: $GITHUB_REPOSITORY\nBranch: $GITHUB_REF_NAME\nCommit: $GITHUB_SHA\"}" \
           $SLACK_WEBHOOK_URL
 
-      # --- 🔹 Step 10: Notify Slack if pipeline fails ---
+      # --- 🔹 Notify Slack if pipeline fails ---
       - name: Send Slack Failure Notification
         if: failure()
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data "{\"text\":\"❌ *CI Pipeline Failed!*\nRepository: $GITHUB_REPOSITORY\nBranch: $GITHUB_REF_NAME\nCommit: $GITHUB_SHA\"}" \
           $SLACK_WEBHOOK_URL
-
-            -Dsonar.qualitygate.wait=true
-            -Dsonar.branch.name=master
