@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 env:
   AWS_REGION: us-east-1
@@ -18,22 +19,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # --- 🔹 Step 1: Checkout repository ---
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # --- 🔹 Step 2: Set up Java (required for SonarCloud) ---
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 11
 
+      # --- 🔹 Step 3: Set up Docker Buildx ---
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # --- 🔹 Step 4: Build Docker image ---
       - name: Build Docker image
         run: |
           docker build -t $ECR_REPOSITORY:$GITHUB_SHA .
 
+      # --- 🔹 Step 5: SonarCloud Scan ---
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
@@ -47,9 +53,9 @@ jobs:
             -Dsonar.java.binaries=.
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
             -Dsonar.qualitygate.wait=true
-            -Dsonar.branch.name=master
+            -Dsonar.branch.name=${{ github.ref_name }}
 
-      # --- 🔹 Notify Slack when pipeline succeeds ---
+      # --- 🔹 Step 6: Slack Success Notification ---
       - name: Send Slack Success Notification
         if: success()
         run: |
@@ -57,7 +63,7 @@ jobs:
           --data "{\"text\":\"✅ *CI Pipeline Succeeded!*\nRepository: $GITHUB_REPOSITORY\nBranch: $GITHUB_REF_NAME\nCommit: $GITHUB_SHA\"}" \
           $SLACK_WEBHOOK_URL
 
-      # --- 🔹 Notify Slack if pipeline fails ---
+      # --- 🔹 Step 7: Slack Failure Notification ---
       - name: Send Slack Failure Notification
         if: failure()
         run: |
