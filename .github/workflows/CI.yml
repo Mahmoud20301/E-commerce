@@ -1,4 +1,5 @@
 name: CI Pipeline
+
 on:
   push:
     branches:
@@ -49,6 +50,7 @@ jobs:
             -Dsonar.sources=.
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/*.test.js,**/*.spec.js
             -Dsonar.qualitygate.wait=true
+
   # Job 2: Build and Scan Docker Image
   build-and-scan:
     name: Build and Scan Docker Image
@@ -75,6 +77,7 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
+
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -90,11 +93,41 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
-  # Job 3: Notify Success
+  # Job 3: Push Docker Image to Amazon ECR
+  push-to-ecr:
+    name: Push Docker Image to Amazon ECR
+    runs-on: ubuntu-latest
+    needs: build-and-scan
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and Push image to ECR
+        run: |
+          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}
+          echo "Pushing image to $IMAGE_URI"
+          
+          # Tag both latest and commit SHA
+          docker tag ${{ env.ECR_REPOSITORY }}:${{ github.sha }} $IMAGE_URI:latest
+          docker tag ${{ env.ECR_REPOSITORY }}:${{ github.sha }} $IMAGE_URI:${{ github.sha }}
+
+          # Push both tags
+          docker push $IMAGE_URI:latest
+          docker push $IMAGE_URI:${{ github.sha }}
+
+  # Job 4: Notify Success
   notify-success:
     name: Send Success Notification
     runs-on: ubuntu-latest
-    needs: [sonarcloud-analysis, build-and-scan]
+    needs: [sonarcloud-analysis, build-and-scan, push-to-ecr]
     if: success()
     steps:
       - name: Send Slack Success Notification
@@ -102,13 +135,14 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"✅ *CI Pipeline Succeeded!*\nRepository: $GITHUB_REPOSITORY\nBranch: $GITHUB_REF_NAME\nCommit: $GITHUB_SHA\"}" \
+          --data "{\"text\":\"✅ *CI Pipeline Succeeded!*\nRepository: $GITHUB_REPOSITORY\nBranch: $GITHUB_REF_NAME\nCommit: $GITHUB_SHA\nImage pushed to ECR successfully.\"}" \
           "$SLACK_WEBHOOK_URL"
-  # Job 4: Notify Failure
+
+  # Job 5: Notify Failure
   notify-failure:
     name: Send Failure Notification
     runs-on: ubuntu-latest
-    needs: [sonarcloud-analysis, build-and-scan]
+    needs: [sonarcloud-analysis, build-and-scan, push-to-ecr]
     if: failure()
     steps:
       - name: Send Slack Failure Notification
