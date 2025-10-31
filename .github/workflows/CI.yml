@@ -12,12 +12,10 @@ env:
   CONTAINER_NAME: e-commerce-container
   SONAR_PROJECT_KEY: sonar-test-e-commerce_new-sonarscan
   SONAR_ORGANIZATION: sonar-test-e-commerce
-  NEXUS_REGISTRY: localhost:5000
-  NEXUS_REPO: docker-hosted
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 jobs:
-  # Job 1: SonarCloud Analysis
+  # Job 1: SonarCloud Code Analysis
   sonarcloud-analysis:
     name: SonarCloud Code Analysis
     runs-on: ubuntu-latest
@@ -52,7 +50,6 @@ jobs:
             -Dsonar.sources=.
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/*.test.js,**/*.spec.js
             -Dsonar.qualitygate.wait=true
-
   # Job 2: Build, Scan, and Push Docker Image
   build-scan-and-push:
     name: Build, Scan, and Push Docker Image
@@ -75,16 +72,15 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Build Docker image
+      # Step 1: Build Docker image
       - name: Build Docker image
         run: |
-          docker build -t ${{ env.CONTAINER_NAME }}:${{ github.sha }} .
-
-      # Scan Docker image with Trivy
+          docker build -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
+      # Step 2: Scan image
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ${{ env.CONTAINER_NAME }}:${{ github.sha }}
+          image-ref: ${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           vuln-type: 'os,library'
@@ -96,26 +92,18 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
-      # Tag and Push Docker image to ECR
-      - name: Tag & Push to ECR
+      # Step 3: Tag & Push image (only if build & scan succeed)
+      - name: Tag and Push Docker image to ECR
         run: |
           IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}
-          docker tag ${{ env.CONTAINER_NAME }}:${{ github.sha }} $IMAGE_URI:latest
-          docker tag ${{ env.CONTAINER_NAME }}:${{ github.sha }} $IMAGE_URI:${{ github.sha }}
+          echo "Pushing image to $IMAGE_URI"
+          
+          # Tag both latest and commit SHA
+          docker tag ${{ env.ECR_REPOSITORY }}:${{ github.sha }} $IMAGE_URI:latest
+          docker tag ${{ env.ECR_REPOSITORY }}:${{ github.sha }} $IMAGE_URI:${{ github.sha }}
+          # Push both tags
           docker push $IMAGE_URI:latest
           docker push $IMAGE_URI:${{ github.sha }}
-          echo "ECR_IMAGE=$IMAGE_URI:${{ github.sha }}" >> $GITHUB_ENV
-
-      # Tag and Push Docker image to Nexus
-      - name: Tag & Push to Nexus
-        run: |
-          docker tag ${{ env.CONTAINER_NAME }}:${{ github.sha }} ${{ env.NEXUS_REGISTRY }}/${{ env.NEXUS_REPO }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-          docker tag ${{ env.CONTAINER_NAME }}:${{ github.sha }} ${{ env.NEXUS_REGISTRY }}/${{ env.NEXUS_REPO }}/${{ env.ECR_REPOSITORY }}:latest
-          echo ${{ secrets.NEXUS_PASSWORD }} | docker login ${{ env.NEXUS_REGISTRY }} -u ${{ secrets.NEXUS_USERNAME }} --password-stdin
-          docker push ${{ env.NEXUS_REGISTRY }}/${{ env.NEXUS_REPO }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-          docker push ${{ env.NEXUS_REGISTRY }}/${{ env.NEXUS_REPO }}/${{ env.ECR_REPOSITORY }}:latest
-          echo "NEXUS_IMAGE=${{ env.NEXUS_REGISTRY }}/${{ env.NEXUS_REPO }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" >> $GITHUB_ENV
-
   # Job 3: Notify Success
   notify-success:
     name: Send Success Notification
@@ -128,9 +116,8 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"✅ *CI Pipeline Succeeded!*\nRepository: $GITHUB_REPOSITORY\nBranch: $GITHUB_REF_NAME\nCommit: $GITHUB_SHA\nECR Image: $ECR_IMAGE\nNexus Image: $NEXUS_IMAGE\"}" \
+          --data "{\"text\":\"✅ *CI Pipeline Succeeded!*\nRepository: $GITHUB_REPOSITORY\nBranch: $GITHUB_REF_NAME\nCommit: $GITHUB_SHA\nImage pushed to ECR successfully.\"}" \
           "$SLACK_WEBHOOK_URL"
-
   # Job 4: Notify Failure
   notify-failure:
     name: Send Failure Notification
