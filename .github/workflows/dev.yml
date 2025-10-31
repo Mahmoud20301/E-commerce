@@ -1,1 +1,39 @@
+name: Local Nexus Push
+
+on:
+  workflow_dispatch:   # Trigger manually from GitHub Actions UI
+  push:
+    branches:
+      - main
+
+env:
+  ECR_REPOSITORY: e-commerce-app
+  CONTAINER_NAME: e-commerce-container
+
+jobs:
+  push-to-nexus:
+    name: Push Docker Image to Local Nexus
+    runs-on: self-hosted   # Must be the machine where Nexus runs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t ${{ env.CONTAINER_NAME }}:${{ github.sha }} .
+
+      - name: Tag Docker image for Nexus
+        run: |
+          docker tag ${{ env.CONTAINER_NAME }}:${{ github.sha }} localhost:5000/docker-hosted/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          docker tag ${{ env.CONTAINER_NAME }}:${{ github.sha }} localhost:5000/docker-hosted/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: Login to Nexus
+        run: echo ${{ secrets.NEXUS_PASSWORD }} | docker login localhost:5000 -u ${{ secrets.NEXUS_USERNAME }} --password-stdin
+
+      - name: Push Docker image to Nexus
+        run: |
+          docker push localhost:5000/docker-hosted/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          docker push localhost:5000/docker-hosted/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: Set Nexus image environment variable
+        run: echo "NEXUS_IMAGE=localhost:5000/docker-hosted/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" >> $GITHUB_ENV
 
