@@ -136,6 +136,26 @@ jobs:
           # Push both tags
           docker push $IMAGE_URI:latest
           docker push $IMAGE_URI:${{ github.sha }}
+
+      # Step 4: Push image to Docker Hub (backup)
+      - name: Push Docker image to Docker Hub
+        run: |
+          echo "Logging in to Docker Hub..."
+          echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+          IMAGE_NAME=${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG=${{ github.sha }}
+
+          echo "Tagging image for Docker Hub..."
+          docker tag $IMAGE_NAME:$IMAGE_TAG docker.io/${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG
+          docker tag $IMAGE_NAME:$IMAGE_TAG docker.io/${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME:latest
+
+          echo "Pushing image to Docker Hub..."
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME:latest
+
+          echo "✅ Image pushed to Docker Hub successfully!"
+
   # Job 3: Notify Success
   notify-success:
     name: Send Success Notification
