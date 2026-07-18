@@ -1,6 +1,7 @@
 
 ## Architecture Components
-![Architecture](Architecture.png)
+<img width="1267" height="560" alt="image" src="https://github.com/user-attachments/assets/23fdca6c-68ef-42f3-b4f3-ab6c65ed28d1" />
+
 ---
 ### Core Infrastructure
 
