@@ -1,24 +1,18 @@
-# Full-Stack App: Node.js Backend + Frontend
 
-This is a full-stack application combining a Node.js backend and a modern frontend (React/Vue/Angular). The project uses a **multi-stage Docker build** to produce a lightweight production image that serves both the backend API and the built frontend.
-
+## Architecture Components
+![Architecture](Architecture.png)
 ---
+### Core Infrastructure
 
-## Website Links
-- **Website**: [Coder Fit](https://coder-fit.vercel.app/)  
-- **Admin Dashboard**: [Coder Admin](https://coder-admin.vercel.app/)
+- **VPC**: Custom VPC with configurable CIDR block
+- **Subnets**: 
+  - 3 Public subnets (one per availability zone)
+  - 6 Private subnets (two per availability zone, distributed across cells)
+- **EKS Clusters**: 3 independent clusters (cell1, cell2, cell3)
+- **Load Balancing**: AWS Load Balancer Controller for each cluster
+- **Auto Scaling**: Cluster Autoscaler for dynamic node scaling
+- **VPC Endpoints**: Private endpoints for ECR, S3, and CloudWatch Logs
 
----
-
-## Objectives
-
-- **Unified Deployment**: Combine frontend and backend in a single production-ready Docker image.  
-- **Optimized Performance**: Use multi-stage builds to reduce final image size.  
-- **Scalable Architecture**: Enable horizontal scaling of backend services.  
-- **Secure Runtime**: Install only production dependencies in the final image.  
-- **Developer-Friendly**: Maintain clear separation between build and runtime stages.
-
----
 
 ## 1. Multi-Stage Docker Build
 
