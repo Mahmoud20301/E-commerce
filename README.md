@@ -1,4 +1,8 @@
+# Project Objective
 
+The objective of this project is to design and implement a production-ready, cloud-native DevOps platform capable of deploying and managing scalable applications on Amazon EKS. The platform emphasizes automation, security, observability, and high availability by integrating Infrastructure-as-Code (Terraform), CI/CD pipelines, container security scanning, and monitoring solutions. By leveraging AWS services and Kubernetes best practices, this project demonstrates how organizations can achieve reliable, secure, and efficient application delivery at scale.
+
+---
 ## Architecture Components
 <img width="1267" height="560" alt="image" src="https://github.com/user-attachments/assets/23fdca6c-68ef-42f3-b4f3-ab6c65ed28d1" />
 
