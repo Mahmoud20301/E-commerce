@@ -18,6 +18,20 @@ The objective of this project is to design and implement a production-ready, clo
 - **Auto Scaling**: Cluster Autoscaler for dynamic node scaling
 - **VPC Endpoints**: Private endpoints for ECR, S3, and CloudWatch Logs
 
+## Deployment Workflow
+
+After provisioning the AWS infrastructure using Terraform, the next step is preparing the application for deployment. The application is containerized using Docker to ensure consistency across development, testing, and production environments. A multi-stage Docker build process is implemented to optimize image size, improve security, and create a lightweight production-ready artifact that can be deployed seamlessly to Amazon EKS.
+
+The deployment lifecycle of the project follows these stages:
+
+1. Provision cloud infrastructure using Terraform.
+2. Build and optimize application containers using Docker.
+3. Automate validation and deployment through GitHub Actions.
+4. Push verified images to Amazon ECR and Docker Hub.
+5. Deploy workloads to Amazon EKS.
+6. Monitor and secure the platform using Prometheus, Grafana, and automated security scans.
+
+---
 
 ## 1. Multi-Stage Docker Build
 
